@@ -29,10 +29,75 @@ export default {
     }
   },
 
+  /**
+   * Canonical and JSON-LD head tags, rendered by templates/ssr.html.
+   */
+  created() {
+    if (this.$ssrContext) {
+      this.$ssrContext.seoHead = this.seoHead()
+    }
+  },
+
   mounted() {
     this.$router.afterEach(() => {
       this.isMobileHeaderOpen = false
     })
+  },
+
+  methods: {
+    seoHead() {
+      const domain = (this.$themeConfig.domain || '').replace(/\/$/, '')
+      if (!domain || this.$page.path === '/404.html') {
+        return ''
+      }
+      const url = domain + this.$page.path
+      const absolute = (path) =>
+        path && !/^https?:\/\//.test(path) ? domain + path : path
+      const escapeAttr = (value) =>
+        value.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+      const tags = [`<link rel="canonical" href="${escapeAttr(url)}">`]
+
+      let jsonLd
+      const frontmatter = this.$frontmatter
+      if (frontmatter.layout === 'Post') {
+        const author = (this.$themeConfig.authors || []).find(
+          ({ name }) => name === frontmatter.author
+        )
+        jsonLd = {
+          '@context': 'https://schema.org',
+          '@type': 'BlogPosting',
+          headline: this.$page.title,
+          description: frontmatter.description,
+          url,
+          mainEntityOfPage: url,
+          image: absolute(frontmatter.image),
+          datePublished:
+            frontmatter.date && new Date(frontmatter.date).toISOString(),
+          dateModified: this.$page.lastUpdated,
+          keywords: [].concat(frontmatter.tags || []).join(', ') || undefined,
+          author: {
+            '@type': 'Person',
+            name: author ? author.name : this.$site.title,
+            url: author ? author.link : domain + '/',
+          },
+        }
+      } else if (this.$page.path === '/') {
+        jsonLd = {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          name: this.$site.title,
+          description: this.$site.description,
+          url: domain + '/',
+        }
+      }
+      if (jsonLd) {
+        const json = JSON.stringify(jsonLd).replace(/</g, '\\u003c')
+        // Split closing tag, a literal one would end this SFC <script> block
+        tags.push(`<script type="application/ld+json">${json}</` + 'script>')
+      }
+
+      return tags.join('\n    ')
+    },
   },
 }
 </script>

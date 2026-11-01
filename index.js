@@ -1,4 +1,5 @@
 const removeMd = require('remove-markdown')
+const fs = require('fs')
 const path = require('path')
 const pick = require('lodash/pick')
 const uniqBy = require('lodash/uniqBy')
@@ -92,6 +93,48 @@ module.exports = (themeConfig, ctx) => {
   )
 
   /**
+   * SEO page data, must run after @vuepress/blog (and its @vuepress/last-updated)
+   * and before seo, which reads layout, lastUpdated and description.
+   */
+  const seoPageData = {
+    name: 'mediumish-seo-page-data',
+    extendPageData($page) {
+      const { frontmatter } = $page
+      // Git dates change on every repo-wide commit, prefer the post dates
+      if (
+        frontmatter.layout === 'Post' &&
+        (frontmatter.lastmod || frontmatter.date)
+      ) {
+        $page.lastUpdated = new Date(
+          frontmatter.lastmod || frontmatter.date
+        ).toISOString()
+      }
+      // Generated listing pages (tags, pagination) get a unique description
+      if (
+        !$page.relativePath &&
+        !frontmatter.description &&
+        $page.path !== '/'
+      ) {
+        const siteDescription = ctx.siteConfig.description || ''
+        frontmatter.description = [
+          $page.title || frontmatter.title,
+          siteDescription,
+        ]
+          .filter(Boolean)
+          .join(' | ')
+      }
+    },
+  }
+
+  const seoOptions = Object.assign(
+    {
+      type: ($page) =>
+        $page.frontmatter.layout === 'Post' ? 'article' : 'website',
+    },
+    themeConfig.seo
+  )
+
+  /**
    * Integrate plugins
    */
   const plugins = [
@@ -104,7 +147,8 @@ module.exports = (themeConfig, ctx) => {
       },
     ],
     ['@vuepress/blog', blogPluginOptions],
-    ['seo', themeConfig.seo || {}],
+    seoPageData,
+    ['seo', seoOptions],
   ]
 
   /**
@@ -131,18 +175,38 @@ module.exports = (themeConfig, ctx) => {
       fonts: path.resolve(__dirname, 'fonts'),
     },
     /**
-     * Serve feeds in dev, generated on demand (they're only built on `generated`).
+     * Lazy load content images.
+     */
+    extendMarkdown(md) {
+      const renderImage = md.renderer.rules.image
+      md.renderer.rules.image = (tokens, idx, options, env, self) => {
+        tokens[idx].attrSet('loading', 'lazy')
+        return renderImage(tokens, idx, options, env, self)
+      }
+    },
+    /**
+     * Serve feeds and sitemap in dev, generated on demand (they're only built on `generated`).
      */
     beforeDevServer(app) {
-      if (!isFeedEnabled) {
-        return
+      const routes = []
+      if (isFeedEnabled) {
+        routes.push([
+          ['/rss.xml', '/feed.atom', '/feed.json'],
+          'vuepress-plugin-feed',
+        ])
       }
-      app.get(['/rss.xml', '/feed.atom', '/feed.json'], async (req, res) => {
-        const feedHooks = ctx.pluginAPI
-          .getOption('generated')
-          .items.filter(({ name }) => name === 'vuepress-plugin-feed')
-        await Promise.all(feedHooks.map(({ value }) => value()))
-        res.sendFile(path.join(ctx.outDir, req.path))
+      if (themeConfig.sitemap && themeConfig.sitemap.hostname) {
+        routes.push([['/sitemap.xml'], 'vuepress-plugin-sitemap'])
+      }
+      routes.forEach(([paths, pluginName]) => {
+        app.get(paths, async (req, res) => {
+          fs.mkdirSync(ctx.outDir, { recursive: true })
+          const hooks = ctx.pluginAPI
+            .getOption('generated')
+            .items.filter(({ name }) => name === pluginName)
+          await Promise.all(hooks.map(({ value }) => value()))
+          res.sendFile(path.join(ctx.outDir, req.path))
+        })
       })
     },
     /**
@@ -160,7 +224,9 @@ module.exports = (themeConfig, ctx) => {
               .trim()
               .replace(/^#+\s+(.*)/, '')
               .slice(0, themeConfig.summaryLength)
-          ) + ' ...'
+          )
+            .replace(/\s+/g, ' ')
+            .trim() + ' ...'
         pageCtx.frontmatter.description = pageCtx.summary
       }
       if (pageCtx.frontmatter.summary) {

@@ -1,5 +1,8 @@
 <template>
   <div id>
+    <h1 class="sr-only">
+      {{ $page.path === '/' ? $site.title : $page.title }}
+    </h1>
     <div
       class="card-panel-content row"
       itemscope
@@ -17,7 +20,11 @@
         <div class="entry card h-100">
           <div class="card-header-image">
             <NavLink :link="page.path">
-              <img :src="page.frontmatter.image" />
+              <img
+                :src="page.frontmatter.image"
+                :alt="page.title"
+                loading="lazy"
+              />
             </NavLink>
           </div>
 

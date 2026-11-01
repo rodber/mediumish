@@ -2,7 +2,7 @@
 
 exports[`should match snapshot without any configuration 1`] = `
 Object {
-  "logo": "/assets/img/logo.png",
+  "logo": "/logo.png",
   "nav": Array [
     Object {
       "link": "/",
@@ -22,11 +22,13 @@ Object {
 exports[`should match snapshot without any configuration 2`] = `
 Object {
   "alias": Object {
-    "fonts": "C:\\\\Users\\\\Gi\\\\Work\\\\1.MyGithubSites\\\\vuepress-theme-mediumish\\\\fonts",
+    "fonts": "/Users/rodolfo/git/rodber/mediumish/fonts",
   },
+  "beforeDevServer": [Function],
   "define": Object {
     "THEME_BLOG_PAGINATION_COMPONENT": "Pagination",
   },
+  "extendMarkdown": [Function],
   "extendPageData": [Function],
   "plugins": Array [
     "@vuepress/plugin-nprogress",
@@ -46,7 +48,7 @@ Object {
         "directories": Array [
           Object {
             "dirname": "_posts",
-            "id": "post",
+            "id": "blog",
             "path": "/",
           },
         ],
@@ -65,9 +67,15 @@ Object {
         },
       },
     ],
+    Object {
+      "extendPageData": [Function],
+      "name": "mediumish-seo-page-data",
+    },
     Array [
-      "smooth-scroll",
-      false,
+      "seo",
+      Object {
+        "type": [Function],
+      },
     ],
   ],
 }
