@@ -37,6 +37,7 @@ export default {
 .feed
   display flex
   align-items center
+  padding .5rem
   color inherit
 
   &:hover
