@@ -1,8 +1,9 @@
 const removeMd = require('remove-markdown')
 const path = require('path')
 const pick = require('lodash/pick')
+const uniqBy = require('lodash/uniqBy')
 
-module.exports = (themeConfig) => {
+module.exports = (themeConfig, ctx) => {
   /**
    * Default theme configuration
    */
@@ -56,9 +57,13 @@ module.exports = (themeConfig) => {
       rss = true,
       atom = true,
       json = true,
+      sort = (entries) => entries,
       ...feedOptions
     } = themeConfig.feed
     resolvedFeedOptions = Object.assign({}, feedOptions, {
+      // Dev reloads re-collect pages, keep only the latest copy of each one
+      sort: (entries) =>
+        sort(uniqBy(entries.slice().reverse(), 'path').reverse()),
       feeds: {
         rss2: { enable: rss },
         atom1: { enable: atom },
@@ -124,6 +129,21 @@ module.exports = (themeConfig) => {
     },
     alias: {
       fonts: path.resolve(__dirname, 'fonts'),
+    },
+    /**
+     * Serve feeds in dev, generated on demand (they're only built on `generated`).
+     */
+    beforeDevServer(app) {
+      if (!isFeedEnabled) {
+        return
+      }
+      app.get(['/rss.xml', '/feed.atom', '/feed.json'], async (req, res) => {
+        const feedHooks = ctx.pluginAPI
+          .getOption('generated')
+          .items.filter(({ name }) => name === 'vuepress-plugin-feed')
+        await Promise.all(feedHooks.map(({ value }) => value()))
+        res.sendFile(path.join(ctx.outDir, req.path))
+      })
     },
     /**
      * Generate summary.
