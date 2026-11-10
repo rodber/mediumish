@@ -41,7 +41,7 @@ fi
 if [ "$2" = 'dir' ] && [ $# -eq 3 ]; then
     echo "Sourcing blog from directory $3"
     rm -rf blog/
-    cp -a $3 blog/
+    cp -a "$3" blog/
 fi
 
 if [ ! -d "blog" ]; then
@@ -67,6 +67,12 @@ echo 'Yarn tiempos'
 yarn
 
 if [ "$1" = 'dev' ]; then
+    if [ "$2" = 'dir' ] && [ $# -eq 3 ]; then
+        echo "Watching $3 for changes"
+        node watch.js "$3" &
+        WATCH_PID=$!
+        trap 'kill $WATCH_PID 2>/dev/null' EXIT INT TERM
+    fi
     echo 'yarn: Dev VuePress'
     yarn dev
 fi

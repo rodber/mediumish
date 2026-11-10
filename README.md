@@ -160,6 +160,12 @@ Command syntax:
 | `false` | Skip the blog sourcing (will use local `blog/`) |
 | `dir`   | Use target dir as `blog/` source (copied)       |
 
+With `dev`, the `dir` option also watches the target dir and syncs changes into `blog/`, so the dev server re-renders live:
+
+```sh
+./deploy.sh dev dir ~/git/chevereto/blog
+```
+
 ## Known bugs
 
 - Posts markdown files, (`YYYY-MM-DD-<name_here>.md`) must not start with a digit at `name_here`.
